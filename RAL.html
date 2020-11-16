@@ -1,0 +1,199 @@
+<html  lang="en">
+<head>
+<title>RAL</title>
+<style>
+#drop_zone {
+	text-align: center;
+	background-color: lightblue;
+	padding: 8px 8px;
+	border-radius: 8px;
+	width:  600px;
+}
+.opres {
+	background-color:#EBF5FB;
+	border-radius:2px;
+	display:inline-block;
+	cursor:pointer;
+	padding-right: 2px;
+	padding-left: 2px;
+}
+.opres:hover {
+	background-color:#AED6F1;
+}
+.opres:active {
+	position:relative;
+	top:1px;
+}
+.code
+{
+	color: black;
+}
+.isIO 
+{ 
+	font-weight:bold;
+	color:#2874A6;
+}
+ul.tree, ul.tree ul {
+list-style: none;
+	margin: 0;
+	padding: 0;
+}
+ul.tree ul {
+	margin-left: 10px;
+}
+ul.tree li {
+	margin: 0;
+	padding: 0 7px;
+	line-height: 20px;
+	color: #369;
+	border-left:1px solid rgb(100,100,100);
+
+}
+ul.tree li:last-child {
+	border-left:none;
+}
+ul.tree li:before {
+	position:relative;
+	top:-0.3em;
+	height:1em;
+	width:12px;
+	color:white;
+	border-bottom:1px solid rgb(100,100,100);
+	content:"";
+	display:inline-block;
+	left:-7px;
+}
+ul.tree li:last-child:before {
+	border-left:1px solid rgb(100,100,100);   
+}
+</style>
+</head>
+<body>
+	<p><b>R</b>ead <b>A</b>pex <b>L</b>ogs by G Peron</p>
+	<div id="drop_zone" ondrop="dropHandler(event);" ondragover="dragOverHandler(event);">
+		<p>Drop an APEX log file here</p>
+	</div>
+
+	<div><p> Or select a file: <input type="file" id="fileInput"></p></div>
+	<p> View all IO and operations longer than <input type="number" id="minTime" value="10" min="0" onChange="viewAll()"> ms.</p>
+	<ul class="tree" id="treeroot"> <!-- https://gist.github.com/dylancwood/7368914 -->
+		<li>here the call tree</li>
+	</ul>
+</body>
+
+<script>
+// cf https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop
+function dropHandler(ev) {
+	ev.preventDefault();  
+	if (ev.dataTransfer.items) {
+	  for (var i = 0; i < ev.dataTransfer.items.length; i++) {
+		if (ev.dataTransfer.items[i].kind === 'file') {
+		  var file = ev.dataTransfer.items[i].getAsFile();
+		  readTheFile(file);
+		  break;
+		}
+	  }
+	} else {
+		readTheFile(ev.dataTransfer.files[0].name);
+	}
+}
+
+function dragOverHandler(ev) {
+  	ev.preventDefault();
+}
+
+var fileInput = document.getElementById('fileInput');
+
+fileInput.addEventListener('change', function(e) {
+	var file = fileInput.files[0];
+	readTheFile(file);
+});
+
+function readTheFile(thefile){
+	var reader = new FileReader();
+	reader.onload = function(e) {
+		let datList = reader.result.split("\n");
+		reader.result = null;
+		genGraph(datList);
+	}
+	reader.readAsText(thefile);  	
+}
+
+
+let currPoint =null;
+
+function genGraph(thelines){
+	eltIDS={};
+	nextID=0;
+	currPoint = {'opTime': '<i>execution time</i>', 'opRes': '<i>resource information</i>', 'opDetails': 'detailed information', 'isIO':'code',  'toView' :true,'parent':null, 'children' : [],'wrap':false}
+	theOutput = '';
+
+	for(b of thelines){
+		bb = b.split('|');
+		timeStamp=bb[0].slice(0,12);
+		timeDelta=bb[0].slice(bb[0].indexOf('(')+1,-1);
+		opType = bb[1];
+		lineNum=bb[2]?bb[2].slice(1,-1):'-';
+		switch(opType){
+		case 'CODE_UNIT_STARTED':
+		case 'METHOD_ENTRY':
+		case 'SOQL_EXECUTE_BEGIN':
+		case 'CALLOUT_REQUEST':
+			newPoint = {'opTime' : timeDelta, 'opRes' : lineNum,'isIO':'code', 'parent':currPoint, 'children' : [],'wrap':false};
+			newPoint.opDetails =  ((bb[4])?bb[4]:bb[3]).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+			newPoint.toView = (['CODE_UNIT_STARTED','METHOD_ENTRY'].includes(opType))?false:true;
+			currPoint.children.push(newPoint);
+			currPoint = newPoint;
+			break
+		case 'SOQL_EXECUTE_END':
+		case 'CALLOUT_RESPONSE':
+			currPoint.opTime = Math.trunc((timeDelta - currPoint.opTime)/1000000);
+			currPoint.opRes += ', ' + bb[3];
+			currPoint.toView = true;
+			currPoint.isIO='isIO';
+			if(currPoint.parent)currPoint = currPoint.parent;
+			currPoint.toView = true;
+			break
+		case 'CODE_UNIT_FINISHED':
+		case 'METHOD_EXIT':
+			currPoint.opTime = Math.trunc((timeDelta - currPoint.opTime)/1000000);
+			viewParent = currPoint.toView; 
+			if(currPoint.parent)currPoint = currPoint.parent;
+			if(viewParent) currPoint.toView = true;
+		}
+	}
+	document.getElementById('treeroot').innerHTML = printCallStack(currPoint);
+}
+
+let eltsID={};
+let nextID=0;
+
+function printCallStack(elt){
+	if(!elt.hasOwnProperty('id')){
+		elt.uid = nextID;
+		eltsID[nextID] = elt;
+		nextID +=1;
+	}
+	if((elt.opTime<minTime) && (!elt.toView)) return '';
+	outstr = `<li><span class="opRes" onclick="dowrap(${elt.uid})"> ${elt.opTime} ms, line ${elt.opRes} ${elt.wrap?"[+]":""}</span><span class="${elt.isIO}">${elt.opDetails}</span>`;
+	if(elt.children && (!elt.wrap)){
+		outstr += '<ul>'
+		outstr += elt.children.map(e=>printCallStack(e)).join('');
+		outstr += '</ul>'
+	}
+	outstr += '</li>';
+	return outstr;
+}
+
+function dowrap(cmpid){
+	eltsID[cmpid].wrap = ! (eltsID[cmpid].wrap);
+	document.getElementById('treeroot').innerHTML = printCallStack(currPoint);
+}
+
+minTime = 10;
+function viewAll(togg){
+	minTime = document.getElementById('minTime').value;
+	document.getElementById('treeroot').innerHTML = printCallStack(currPoint);
+}
+</script>
+</html>
