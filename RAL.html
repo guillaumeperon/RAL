@@ -123,10 +123,9 @@ function readTheFile(thefile){
 let currPoint =null;
 
 function genGraph(thelines){
-	numsoql = 0;
 	eltIDS={};
 	nextID=0;
-	currPoint = {'opTime': '<i>execution time</i>', 'opRes': '<i>resource information</i>', 'opDetails': 'detailed information', 'isIO':'code',  'toView' :true,'parent':null, 'children' : [],'wrap':false, 'nbDML':0,'nbSOQL':0,'nbCO':0}
+	currPoint = {'opTime': '<i>execution time</i>', 'opRes': '<i>resource information</i>', 'opDetails': 'detailed information', 'isIO':false,  'toView' :true,'parent':null, 'children' : [],'wrap':false, 'nbDML':0,'nbSOQL':0,'nbCO':0}
 	theOutput = '';
 
 	for(b of thelines){
@@ -136,39 +135,31 @@ function genGraph(thelines){
 		timeDelta=bb[0].slice(bb[0].indexOf('(')+1,-1);
 		opType = bb[1];
 		lineNum=bb[2]?bb[2].slice(1,-1):'-';
-		switch(opType){
-		case 'CODE_UNIT_STARTED':
-		case 'METHOD_ENTRY':
-		case 'SOQL_EXECUTE_BEGIN':
-		case 'DML_BEGIN':
-		case 'CALLOUT_REQUEST':
-		case 'CONSTRUCTOR_ENTRY':
-		case 'EXCEPTION_THROWN':
-		case 'FATAL_ERROR':
-			newPoint = {'opTime' : timeDelta, 'opRes' : lineNum,'isIO':'code', 'parent':currPoint, 'children' : [],'wrap':false, 'nbDML':0,'nbSOQL':0,'nbCO':0};
+		if(['CODE_UNIT_STARTED','METHOD_ENTRY','SOQL_EXECUTE_BEGIN','DML_BEGIN','CALLOUT_REQUEST','CONSTRUCTOR_ENTRY','EXCEPTION_THROWN','FATAL_ERROR'].includes(opType)){
 			opDET = (opType==='CONSTRUCTOR_ENTRY')?('new ' + bb[5]):((bb[4])?bb[4]:bb[3]);
 			if(opType==='DML_BEGIN') opDET = `DML ${bb[3].split(':')[1]} ${bb[4].split(':')[1]} ${bb[5].split(':')[1]} rows`
 			if(opType==='FATAL_ERROR') opDET = bb[2];
+			newPoint = {
+				'opTime': timeDelta,
+				'opRes' : lineNum,
+				'isIO'  : (['SOQL_EXECUTE_BEGIN','DML_BEGIN','CALLOUT_REQUEST'].includes(opType))?true:false,
+				'parent': currPoint,
+				'wrap'  : false, 
+				'nbDML' : (opType==='DML_BEGIN')?1:0,
+				'nbSOQL': (opType==='SOQL_EXECUTE_BEGIN')?1:0,
+				'nbCO'  : (opType==='CALLOUT_REQUEST')?1:0,
+				'toView': (['CODE_UNIT_STARTED','METHOD_ENTRY','CONSTRUCTOR_ENTRY'].includes(opType))?false:true,
+				'children' : []
+			};
 			newPoint.opDetails =  opDET.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-			newPoint.toView = (['CODE_UNIT_STARTED','METHOD_ENTRY','CONSTRUCTOR_ENTRY'].includes(opType))?false:true;
-			newPoint.nbSOQL=(opType==='SOQL_EXECUTE_BEGIN')?1:0;
-			newPoint.nbCO=(opType==='CALLOUT_REQUEST')?1:0;
-			newPoint.nbDML=(opType==='DML_BEGIN')?1:0;
-			if(opType==='SOQL_EXECUTE_BEGIN') console.log('num soql ' + numsoql++ + ' ' + newPoint.opDetails);
 			currPoint.children.push(newPoint);
 			if(opType!=='EXCEPTION_THROWN' && opType!=='FATAL_ERROR') currPoint = newPoint;
-			break
-		case 'SOQL_EXECUTE_END':
-		case 'DML_END':
-		case 'CALLOUT_RESPONSE':
-		case 'CODE_UNIT_FINISHED':
-		case 'METHOD_EXIT':
-		case 'CONSTRUCTOR_EXIT':
+		}
+		if(['SOQL_EXECUTE_END','DML_END','CALLOUT_RESPONSE','CODE_UNIT_FINISHED','METHOD_EXIT','CONSTRUCTOR_EXIT'].includes(opType)){
 			currPoint.opTime = Math.trunc((timeDelta - currPoint.opTime)/1000000);
-			if(opType==='SOQL_EXECUTE_END' || opType==='CALLOUT_RESPONSE' || opType==='DML_END'){
+			if(currPoint.isIO){
 				currPoint.opRes += ', ' + bb[3];
 				currPoint.toView = true;
-				currPoint.isIO='isIO';	
 			}
 			if(currPoint.parent){
 				currPoint.parent.nbSOQL += currPoint.nbSOQL;
@@ -177,7 +168,6 @@ function genGraph(thelines){
 				currPoint.parent.toView = currPoint.toView;
 				currPoint = currPoint.parent;
 			}
-			break
 		}
 	}
 	while(currPoint.parent){
@@ -199,7 +189,7 @@ function printCallStack(elt){
 		nextID +=1;
 	}
 	if((elt.opTime<minTime) && (!elt.toView)) return '';
-	outstr = `<li><span class="opRes" onclick="dowrap(${elt.uid})">${elt.opTime}ms,${elt.nbSOQL}soql,${elt.nbCO}co,${elt.nbDML}dml, line ${elt.opRes} ${elt.wrap?"[+]":""}</span><span class="${elt.isIO}">${elt.opDetails}</span>`;
+	outstr = `<li><span class="opRes" onclick="dowrap(${elt.uid})">${elt.opTime}ms soql:${elt.nbSOQL} co:${elt.nbCO} dml:${elt.nbDML} line ${elt.opRes} ${elt.wrap?"[+]":""}</span><span class="${elt.isIO?'isIO':'code'}">${elt.opDetails}</span>`;
 	if(elt.children && (!elt.wrap)){
 		outstr += '<ul>'
 		outstr += elt.children.map(e=>printCallStack(e)).join('');
