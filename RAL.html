@@ -125,7 +125,7 @@ let currPoint =null;
 function genGraph(thelines){
 	eltIDS={};
 	nextID=0;
-	currPoint = {'opTime': '<i>execution time</i>', 'opRes': '<i>resource information</i>', 'opDetails': 'detailed information', 'isIO':'code',  'toView' :true,'parent':null, 'children' : [],'wrap':false}
+	currPoint = {'opTime': '<i>execution time</i>', 'opRes': '<i>resource information</i>', 'opDetails': 'detailed information', 'isIO':'code',  'toView' :true,'parent':null, 'children' : [],'wrap':false, 'nbDML':0,'nbSOQL':0,'nbCO':0}
 	theOutput = '';
 
 	for(b of thelines){
@@ -140,7 +140,7 @@ function genGraph(thelines){
 		case 'SOQL_EXECUTE_BEGIN':
 		case 'CALLOUT_REQUEST':
 		case 'CONSTRUCTOR_ENTRY':
-			newPoint = {'opTime' : timeDelta, 'opRes' : lineNum,'isIO':'code', 'parent':currPoint, 'children' : [],'wrap':false};
+			newPoint = {'opTime' : timeDelta, 'opRes' : lineNum,'isIO':'code', 'parent':currPoint, 'children' : [],'wrap':false, 'nbDML':0,'nbSOQL':0,'nbCO':0};
 			opDET = (opType==='CONSTRUCTOR_ENTRY')?('new ' + bb[5]):((bb[4])?bb[4]:bb[3]);
 			newPoint.opDetails =  opDET.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 			newPoint.toView = (['CODE_UNIT_STARTED','METHOD_ENTRY','CONSTRUCTOR_ENTRY'].includes(opType))?false:true;
@@ -153,7 +153,9 @@ function genGraph(thelines){
 			currPoint.opRes += ', ' + bb[3];
 			currPoint.toView = true;
 			currPoint.isIO='isIO';
-			if(currPoint.parent)currPoint = currPoint.parent;
+			if(opType==='SOQL_EXECUTE_END') currPoint.parent.nbSOQL++;
+			if(opType==='CALLOUT_RESPONSE') currPoint.parent.nbDML++;
+			if(currPoint.parent) currPoint = currPoint.parent;
 			currPoint.toView = true;
 			break
 		case 'CODE_UNIT_FINISHED':
@@ -161,7 +163,11 @@ function genGraph(thelines){
 		case 'CONSTRUCTOR_EXIT':
 			currPoint.opTime = Math.trunc((timeDelta - currPoint.opTime)/1000000);
 			viewParent = currPoint.toView; 
-			if(currPoint.parent)currPoint = currPoint.parent;
+			if(currPoint.parent){
+				currPoint.parent.nbCO += currPoint.nbCO;
+				currPoint.parent.nbSOQL += currPoint.nbSOQL;
+				currPoint = currPoint.parent;
+			}
 			if(viewParent) currPoint.toView = true;
 		}
 	}
@@ -178,7 +184,7 @@ function printCallStack(elt){
 		nextID +=1;
 	}
 	if((elt.opTime<minTime) && (!elt.toView)) return '';
-	outstr = `<li><span class="opRes" onclick="dowrap(${elt.uid})"> ${elt.opTime} ms, line ${elt.opRes} ${elt.wrap?"[+]":""}</span><span class="${elt.isIO}">${elt.opDetails}</span>`;
+	outstr = `<li><span class="opRes" onclick="dowrap(${elt.uid})">${elt.opTime}ms-${elt.nbSOQL}soql-${elt.nbCO}co, line ${elt.opRes} ${elt.wrap?"[+]":""}</span><span class="${elt.isIO}">${elt.opDetails}</span>`;
 	if(elt.children && (!elt.wrap)){
 		outstr += '<ul>'
 		outstr += elt.children.map(e=>printCallStack(e)).join('');
