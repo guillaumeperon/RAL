@@ -139,9 +139,11 @@ function genGraph(thelines){
 		case 'METHOD_ENTRY':
 		case 'SOQL_EXECUTE_BEGIN':
 		case 'CALLOUT_REQUEST':
+		case 'CONSTRUCTOR_ENTRY':
 			newPoint = {'opTime' : timeDelta, 'opRes' : lineNum,'isIO':'code', 'parent':currPoint, 'children' : [],'wrap':false};
-			newPoint.opDetails =  ((bb[4])?bb[4]:bb[3]).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-			newPoint.toView = (['CODE_UNIT_STARTED','METHOD_ENTRY'].includes(opType))?false:true;
+			opDET = (opType==='CONSTRUCTOR_ENTRY')?('new ' + bb[5]):((bb[4])?bb[4]:bb[3]);
+			newPoint.opDetails =  opDET.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+			newPoint.toView = (['CODE_UNIT_STARTED','METHOD_ENTRY','CONSTRUCTOR_ENTRY'].includes(opType))?false:true;
 			currPoint.children.push(newPoint);
 			currPoint = newPoint;
 			break
@@ -156,6 +158,7 @@ function genGraph(thelines){
 			break
 		case 'CODE_UNIT_FINISHED':
 		case 'METHOD_EXIT':
+		case 'CONSTRUCTOR_EXIT':
 			currPoint.opTime = Math.trunc((timeDelta - currPoint.opTime)/1000000);
 			viewParent = currPoint.toView; 
 			if(currPoint.parent)currPoint = currPoint.parent;
