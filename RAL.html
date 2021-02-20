@@ -75,13 +75,74 @@ ul.tree li:last-child:before {
 	</div>
 
 	<div><p> Or select a file: <input type="file" id="fileInput"></p></div>
-	<p> View all IO and operations longer than <input type="number" id="minTime" value="10" min="0" onChange="viewAll()"> ms.</p>
+	<p> View all IO <input type="checkbox" id="vIO" name="vIO" value="vIO" checked onclick="viewIOs(this)"/> View operations longer than <input type="number" id="minTime" value="10" min="0" onChange="viewAll()"> ms.</p>
 	<ul class="tree" id="treeroot"> <!-- https://gist.github.com/dylancwood/7368914 -->
 		<li>here the call tree</li>
 	</ul>
 </body>
 
 <script>
+// Manage the display of part of a tree
+let treeRoot = {'uid':0,'opTime': 0, 'opRes': '<i>cmp info</i>', 'opDetails': 'detailed information', 'isIO':false,  'containsIO' :true,'parent':null, 'children' : [],'hidden':false, 'nbDML':0,'nbSOQL':0,'nbCO':0}
+let eltsById={};
+//let eltsById={0:treeRoot};
+
+
+function printCallStack(elt){
+	let wrap = false;
+	if(elt.hidden && elt!==treeRoot) return '';
+	if(elt.children.length>0){
+		childStr = elt.children.map(e=>printCallStack(e)).join('');
+		wrap = true;
+	} 
+	outstr = `<li><span class="opRes" ${wrap?`onclick="dowrap(${elt.uid})"`:""}>${elt.opTime}ms ${elt.nbSOQL}soql ${elt.nbCO}co ${elt.nbDML}dml ${wrap?"[+]":""}</span><span class="${elt.isIO?'isIO':'code'}">${elt.opDetails} line ${elt.opRes}</span>`;
+	if(wrap) outstr += '<ul>' + childStr +  '</ul>';
+	outstr += '</li>';
+	return outstr;
+}
+
+let viewIO = true;
+function viewIOs(togg){
+	updateHidden(minTime,minTime,viewIO,togg.checked);
+	viewIO = togg.checked;
+	document.getElementById('treeroot').innerHTML = printCallStack(treeRoot);
+}
+
+minTime = 10;
+function viewAll(togg){
+	newTime = document.getElementById('minTime').value;
+	updateHidden(minTime,newTime,viewIO,viewIO);
+	minTime = newTime;
+	document.getElementById('treeroot').innerHTML = printCallStack(treeRoot);
+}
+
+function dowrap(cmpid){
+	children = eltsById[cmpid].children;
+	numvisible = children.reduce((acc, curr)=>acc+(curr.hidden?0:1),0);
+	if(numvisible===0){ // all elts hidden, show those longer than.. or with io
+		for(let elt of children) elt.hidden=(elt.opTime<minTime) && ((!elt.containsIO)||(!viewIO));
+	}else if(numvisible===children.length){ // all visible : hide all
+		for(let elt of children) elt.hidden=true;
+	}else{ // some visible : show all
+		for(let elt of children) elt.hidden=false;
+	}
+	document.getElementById('treeroot').innerHTML = printCallStack(treeRoot);
+}
+
+// update component hidden status
+// if old status was not the "calculated one", it was done manually, dont change it
+function updateHidden(fromms,toms,fromio,toio){
+	for(anelt of Object.values(eltsById)){
+		if(fromms != null){
+			oldAutoState = (anelt.opTime<fromms) && ((!anelt.containsIO)||(!fromio));
+			if(anelt.hidden!=oldAutoState) continue;	
+		}
+		anelt.hidden = (anelt.opTime<toms) && ((!anelt.containsIO)||(!toio));
+	}
+}
+
+
+// Loading of log files
 // cf https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop
 function dropHandler(ev) {
 	ev.preventDefault();  
@@ -120,94 +181,61 @@ function readTheFile(thefile){
 }
 
 
-let currPoint =null;
-
 function genGraph(thelines){
-	eltIDS={};
 	nextID=0;
-	currPoint = {'opTime': '<i>execution time</i>', 'opRes': '<i>resource information</i>', 'opDetails': 'detailed information', 'isIO':false,  'toView' :true,'parent':null, 'children' : [],'wrap':false, 'nbDML':0,'nbSOQL':0,'nbCO':0}
-	theOutput = '';
-
 	for(b of thelines){
 		bb = b.split('|');
 		if(bb.length<3) continue;
-		timeStamp=bb[0].slice(0,12);
+		//timeStamp=bb[0].slice(0,12);
 		timeDelta=bb[0].slice(bb[0].indexOf('(')+1,-1);
 		opType = bb[1];
 		lineNum=bb[2]?bb[2].slice(1,-1):'-';
-		if(['CODE_UNIT_STARTED','METHOD_ENTRY','SOQL_EXECUTE_BEGIN','DML_BEGIN','CALLOUT_REQUEST','CONSTRUCTOR_ENTRY','EXCEPTION_THROWN','FATAL_ERROR'].includes(opType)){
+		if(['CODE_UNIT_STARTED','METHOD_ENTRY','SOQL_EXECUTE_BEGIN','DML_BEGIN','CALLOUT_REQUEST','CONSTRUCTOR_ENTRY','FLOW_CREATE_INTERVIEW_END','EXCEPTION_THROWN','FATAL_ERROR'].includes(opType)){
 			opDET = (opType==='CONSTRUCTOR_ENTRY')?('new ' + bb[5]):((bb[4])?bb[4]:bb[3]);
 			if(opType==='DML_BEGIN') opDET = `DML ${bb[3].split(':')[1]} ${bb[4].split(':')[1]} ${bb[5].split(':')[1]} rows`
 			if(opType==='FATAL_ERROR') opDET = bb[2];
 			newPoint = {
+				'uid' : ++nextID,
 				'opTime': timeDelta,
 				'opRes' : lineNum,
 				'isIO'  : (['SOQL_EXECUTE_BEGIN','DML_BEGIN','CALLOUT_REQUEST'].includes(opType))?true:false,
-				'parent': currPoint,
-				'wrap'  : false, 
+				'parent': treeRoot,
+				'hidden'  : false,
 				'nbDML' : (opType==='DML_BEGIN')?1:0,
 				'nbSOQL': (opType==='SOQL_EXECUTE_BEGIN')?1:0,
 				'nbCO'  : (opType==='CALLOUT_REQUEST')?1:0,
-				'toView': (['CODE_UNIT_STARTED','METHOD_ENTRY','CONSTRUCTOR_ENTRY'].includes(opType))?false:true,
+				'containsIO': (['CODE_UNIT_STARTED','METHOD_ENTRY','CONSTRUCTOR_ENTRY'].includes(opType))?false:true,
 				'children' : []
 			};
+			eltsById[nextID] = newPoint;
 			newPoint.opDetails =  opDET.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-			currPoint.children.push(newPoint);
-			if(opType!=='EXCEPTION_THROWN' && opType!=='FATAL_ERROR') currPoint = newPoint;
+			treeRoot.children.push(newPoint);
+			if(opType!=='EXCEPTION_THROWN' && opType!=='FATAL_ERROR') treeRoot = newPoint;
 		}
-		if(['SOQL_EXECUTE_END','DML_END','CALLOUT_RESPONSE','CODE_UNIT_FINISHED','METHOD_EXIT','CONSTRUCTOR_EXIT'].includes(opType)){
-			currPoint.opTime = Math.trunc((timeDelta - currPoint.opTime)/1000000);
-			if(currPoint.isIO){
-				currPoint.opRes += ', ' + bb[3];
-				currPoint.toView = true;
+		if(['SOQL_EXECUTE_END','DML_END','CALLOUT_RESPONSE','CODE_UNIT_FINISHED','METHOD_EXIT','CONSTRUCTOR_EXIT','FLOW_INTERVIEW_FINISHED'].includes(opType)){
+			treeRoot.opTime = Math.trunc((timeDelta - treeRoot.opTime)/1000000);
+			if(treeRoot.isIO){
+				treeRoot.opRes += ', ' + bb[3];
+				treeRoot.containsIO = true;
 			}
-			if(currPoint.parent){
-				currPoint.parent.nbSOQL += currPoint.nbSOQL;
-				currPoint.parent.nbCO += currPoint.nbCO;
-				currPoint.parent.nbDML += currPoint.nbDML;
-				currPoint.parent.toView = currPoint.toView;
-				currPoint = currPoint.parent;
+			if(treeRoot.parent){
+				treeRoot.parent.nbSOQL += treeRoot.nbSOQL;
+				treeRoot.parent.nbCO += treeRoot.nbCO;
+				treeRoot.parent.nbDML += treeRoot.nbDML;
+				treeRoot.parent.containsIO = treeRoot.containsIO;
+				treeRoot = treeRoot.parent;
 			}
 		}
 	}
-	while(currPoint.parent){
-		currPoint.parent.nbSOQL += currPoint.nbSOQL;
-		currPoint.parent.nbCO += currPoint.nbCO;
-		currPoint.parent.toView = currPoint.toView;
-		currPoint = currPoint.parent;
+	while(treeRoot.parent){
+		treeRoot.parent.nbSOQL += treeRoot.nbSOQL;
+		treeRoot.parent.nbCO += treeRoot.nbCO;
+		treeRoot.parent.containsIO = treeRoot.containsIO;
+		treeRoot = treeRoot.parent;
 	}
-	document.getElementById('treeroot').innerHTML = printCallStack(currPoint);
+	updateHidden(null,minTime,null,viewIO);
+	document.getElementById('treeroot').innerHTML = printCallStack(treeRoot);
 }
 
-let eltsID={};
-let nextID=0;
-
-function printCallStack(elt){
-	if(!elt.hasOwnProperty('id')){
-		elt.uid = nextID;
-		eltsID[nextID] = elt;
-		nextID +=1;
-	}
-	if((elt.opTime<minTime) && (!elt.toView)) return '';
-	outstr = `<li><span class="opRes" onclick="dowrap(${elt.uid})">${elt.opTime}ms soql:${elt.nbSOQL} co:${elt.nbCO} dml:${elt.nbDML} line ${elt.opRes} ${elt.wrap?"[+]":""}</span><span class="${elt.isIO?'isIO':'code'}">${elt.opDetails}</span>`;
-	if(elt.children && (!elt.wrap)){
-		outstr += '<ul>'
-		outstr += elt.children.map(e=>printCallStack(e)).join('');
-		outstr += '</ul>'
-	}
-	outstr += '</li>';
-	return outstr;
-}
-
-function dowrap(cmpid){
-	eltsID[cmpid].wrap = ! (eltsID[cmpid].wrap);
-	document.getElementById('treeroot').innerHTML = printCallStack(currPoint);
-}
-
-minTime = 10;
-function viewAll(togg){
-	minTime = document.getElementById('minTime').value;
-	document.getElementById('treeroot').innerHTML = printCallStack(currPoint);
-}
 </script>
 </html>
