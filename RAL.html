@@ -17,6 +17,13 @@
 	padding-right: 2px;
 	padding-left: 2px;
 }
+.opinfo {
+	background-color:#c6ccc5;
+	border-radius:2px;
+	display:inline-block;
+	padding-right: 2px;
+	padding-left: 2px;
+}
 .opres:hover {
 	background-color:#AED6F1;
 }
@@ -94,8 +101,13 @@ function printCallStack(elt){
 	if(elt.children.length>0){
 		childStr = elt.children.map(e=>printCallStack(e)).join('');
 		wrap = true;
-	} 
-	outstr = `<li><span class="opRes" ${wrap?`onclick="dowrap(${elt.uid})"`:""}>${elt.opTime}ms ${elt.nbSOQL}soql ${elt.nbCO}co ${elt.nbDML}dml ${wrap?"[+]":""}</span><span class="${elt.isIO?'isIO':'code'}">${elt.opDetails} line ${elt.opRes}</span>`;
+	}
+	if(elt.isIO) {
+	outstr = `<li><span class="opinfo">${elt.opTime}ms ${elt.opDetails} line ${elt.opRes}</span>`;
+	}else{
+		outstr = `<li><span class="opRes" ${wrap?`onclick="dowrap(${elt.uid})"`:""}>${elt.opTime}ms ${elt.nbSOQL}soql ${elt.nbCO}co ${elt.nbDML}dml ${wrap?"[+]":""}</span><span class="${elt.isIO?'isIO':'code'}">${elt.opDetails} line ${elt.opRes}</span>`;
+
+	}
 	if(wrap) outstr += '<ul>' + childStr +  '</ul>';
 	outstr += '</li>';
 	return outstr;
@@ -190,15 +202,16 @@ function genGraph(thelines){
 		timeDelta=bb[0].slice(bb[0].indexOf('(')+1,-1);
 		opType = bb[1];
 		lineNum=bb[2]?bb[2].slice(1,-1):'-';
-		if(['CODE_UNIT_STARTED','METHOD_ENTRY','SOQL_EXECUTE_BEGIN','DML_BEGIN','CALLOUT_REQUEST','CONSTRUCTOR_ENTRY','FLOW_CREATE_INTERVIEW_END','EXCEPTION_THROWN','FATAL_ERROR'].includes(opType)){
+		if(['CODE_UNIT_STARTED','METHOD_ENTRY','SOQL_EXECUTE_BEGIN','DML_BEGIN','CALLOUT_REQUEST','CONSTRUCTOR_ENTRY','FLOW_CREATE_INTERVIEW_END','EXCEPTION_THROWN','FATAL_ERROR','USER_DEBUG'].includes(opType)){
 			opDET = (opType==='CONSTRUCTOR_ENTRY')?('new ' + bb[5]):((bb[4])?bb[4]:bb[3]);
 			if(opType==='DML_BEGIN') opDET = `DML ${bb[3].split(':')[1]} ${bb[4].split(':')[1]} ${bb[5].split(':')[1]} rows`
 			if(opType==='FATAL_ERROR') opDET = bb[2];
+			if(opType==='USER_DEBUG') opDET = bb[3] + ' ' + bb[4];
 			newPoint = {
 				'uid' : ++nextID,
 				'opTime': timeDelta,
 				'opRes' : lineNum,
-				'isIO'  : (['SOQL_EXECUTE_BEGIN','DML_BEGIN','CALLOUT_REQUEST'].includes(opType))?true:false,
+				'isIO'  : (['EXCEPTION_THROWN','FATAL_ERROR','SOQL_EXECUTE_BEGIN','DML_BEGIN','CALLOUT_REQUEST','USER_DEBUG'].includes(opType))?true:false,
 				'parent': treeRoot,
 				'hidden'  : false,
 				'nbDML' : (opType==='DML_BEGIN')?1:0,
@@ -210,7 +223,8 @@ function genGraph(thelines){
 			eltsById[nextID] = newPoint;
 			newPoint.opDetails =  opDET.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 			treeRoot.children.push(newPoint);
-			if(opType!=='EXCEPTION_THROWN' && opType!=='FATAL_ERROR') treeRoot = newPoint;
+			if(['EXCEPTION_THROWN','FATAL_ERROR','USER_DEBUG'].includes(opType)) newPoint.opTime = 0;
+			else treeRoot = newPoint;
 		}
 		if(['SOQL_EXECUTE_END','DML_END','CALLOUT_RESPONSE','CODE_UNIT_FINISHED','METHOD_EXIT','CONSTRUCTOR_EXIT','FLOW_INTERVIEW_FINISHED'].includes(opType)){
 			treeRoot.opTime = Math.trunc((timeDelta - treeRoot.opTime)/1000000);
