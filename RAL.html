@@ -12,7 +12,7 @@
 .opres {
 	background-color:#EBF5FB;
 	border-radius:2px;
-	display:inline-block;
+	display:block;
 	cursor:pointer;
 	padding-right: 2px;
 	padding-left: 2px;
@@ -23,6 +23,9 @@
 	display:inline-block;
 	padding-right: 2px;
 	padding-left: 2px;
+	margin-top: -16px;
+	margin-left: 4px;
+
 }
 .opres:hover {
 	background-color:#AED6F1;
@@ -67,7 +70,7 @@ ul.tree li:before {
 	color:white;
 	border-bottom:1px solid rgb(100,100,100);
 	content:"";
-	display:inline-block;
+	display:inline;
 	left:-7px;
 }
 ul.tree li:last-child:before {
@@ -90,7 +93,7 @@ ul.tree li:last-child:before {
 
 <script>
 // Manage the display of part of a tree
-let treeRoot = {'uid':0,'opTime': 0, 'opRes': '<i>cmp info</i>', 'opDetails': 'detailed information', 'isIO':false,  'containsIO' :true,'parent':null, 'children' : [],'hidden':false, 'nbDML':0,'nbSOQL':0,'nbCO':0}
+let treeRoot = {'uid':0,'opStart':0,'opTime':0,'opRes': '<i>cmp info</i>', 'opDetails': 'detailed information', 'isIO':false,  'containsIO' :true,'parent':null, 'children' : [],'hidden':false, 'nbDML':0,'nbSOQL':0,'nbCO':0}
 let eltsById={};
 //let eltsById={0:treeRoot};
 
@@ -103,9 +106,9 @@ function printCallStack(elt){
 		wrap = true;
 	}
 	if(elt.isIO) {
-	outstr = `<li><span class="opinfo">${elt.opTime}ms ${elt.opDetails} line ${elt.opRes}</span>`;
+	outstr = `<li><span class="opinfo">[${elt.opStart}]${elt.opTime?elt.opTime+"ms":""} ${elt.opDetails} line ${elt.opRes}</span>`;
 	}else{
-		outstr = `<li><span class="opRes" ${wrap?`onclick="dowrap(${elt.uid})"`:""}>${elt.opTime}ms ${elt.nbSOQL}soql ${elt.nbCO}co ${elt.nbDML}dml ${wrap?"[+]":""}</span><span class="${elt.isIO?'isIO':'code'}">${elt.opDetails} line ${elt.opRes}</span>`;
+		outstr = `<li><span class="opRes" ${wrap?`onclick="dowrap(${elt.uid})"`:""}>[${elt.opStart}]${elt.opTime?elt.opTime+"ms":""} ${elt.nbSOQL}soql ${elt.nbCO}co ${elt.nbDML}dml ${wrap?"[+]":""}</span><span class="${elt.isIO?'isIO':'code'}">${elt.opDetails} line ${elt.opRes}</span>`;
 
 	}
 	if(wrap) outstr += '<ul>' + childStr +  '</ul>';
@@ -209,6 +212,7 @@ function genGraph(thelines){
 			if(opType==='USER_DEBUG') opDET = bb[3] + ' ' + bb[4];
 			newPoint = {
 				'uid' : ++nextID,
+				'opStart': Math.trunc((timeDelta)/1000000),
 				'opTime': timeDelta,
 				'opRes' : lineNum,
 				'isIO'  : (['EXCEPTION_THROWN','FATAL_ERROR','SOQL_EXECUTE_BEGIN','DML_BEGIN','CALLOUT_REQUEST','USER_DEBUG'].includes(opType))?true:false,
@@ -227,7 +231,7 @@ function genGraph(thelines){
 			else treeRoot = newPoint;
 		}
 		if(['SOQL_EXECUTE_END','DML_END','CALLOUT_RESPONSE','CODE_UNIT_FINISHED','METHOD_EXIT','CONSTRUCTOR_EXIT','FLOW_INTERVIEW_FINISHED'].includes(opType)){
-			treeRoot.opTime = Math.trunc((timeDelta - treeRoot.opTime)/1000000);
+			treeRoot.opTime = Math.trunc((timeDelta)/1000000)  - treeRoot.opStart;
 			if(treeRoot.isIO){
 				treeRoot.opRes += ', ' + bb[3];
 				treeRoot.containsIO = true;
