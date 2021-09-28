@@ -202,7 +202,7 @@ function genGraph(thelines){
 		timeDelta=bb[0].slice(bb[0].indexOf('(')+1,-1);
 		opType = bb[1];
 		lineNum=bb[2]?bb[2].slice(1,-1):'-';
-		if(['CODE_UNIT_STARTED','METHOD_ENTRY','SOQL_EXECUTE_BEGIN','DML_BEGIN','CALLOUT_REQUEST','CONSTRUCTOR_ENTRY','FLOW_CREATE_INTERVIEW_END','EXCEPTION_THROWN','FATAL_ERROR','USER_DEBUG'].includes(opType)){
+		if(['CODE_UNIT_STARTED','METHOD_ENTRY','SOQL_EXECUTE_BEGIN','DML_BEGIN','CALLOUT_REQUEST','CONSTRUCTOR_ENTRY','FLOW_CREATE_INTERVIEW_END','EXCEPTION_THROWN','FATAL_ERROR','USER_DEBUG','VALIDATION_RULE'].includes(opType)){
 			opDET = (opType==='CONSTRUCTOR_ENTRY')?('new ' + bb[5]):((bb[4])?bb[4]:bb[3]);
 			if(opType==='DML_BEGIN') opDET = `DML ${bb[3].split(':')[1]} ${bb[4].split(':')[1]} ${bb[5].split(':')[1]} rows`
 			if(opType==='FATAL_ERROR') opDET = bb[2];
@@ -227,7 +227,7 @@ function genGraph(thelines){
 			if(['EXCEPTION_THROWN','FATAL_ERROR','USER_DEBUG'].includes(opType)) newPoint.opTime = 0;
 			else treeRoot = newPoint;
 		}
-		if(['SOQL_EXECUTE_END','DML_END','CALLOUT_RESPONSE','CODE_UNIT_FINISHED','METHOD_EXIT','CONSTRUCTOR_EXIT','FLOW_INTERVIEW_FINISHED'].includes(opType)){
+		if(['SOQL_EXECUTE_END','DML_END','CALLOUT_RESPONSE','CODE_UNIT_FINISHED','METHOD_EXIT','CONSTRUCTOR_EXIT','FLOW_INTERVIEW_FINISHED','VALIDATION_PASS','VALIDATION_ERROR'].includes(opType)){
 			treeRoot.opTime = Math.trunc((timeDelta)/1000000)  - treeRoot.opStart;
 			if(treeRoot.isIO){
 				treeRoot.opRes += ', ' + bb[3];
