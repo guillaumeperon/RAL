@@ -96,7 +96,7 @@
 
 	<div>
 		<p> Or select a file: <input type="file" id="fileInput"></input> or <a href="./RALogin.html">Login to an org
-			</a> and <button onclick="showLogList">download load</button>
+			</a> and <button onclick="showLogList">Read log</button>
 		</p>
 	</div>
 	<p> View all IO <input type="checkbox" id="vIO" name="vIO" value="vIO" checked onclick="viewIOs(this)" /></input>
@@ -313,7 +313,7 @@
 	}
 
 	async function genTreeFromLogId(lid) {
-		let treelines = loadFromSF(lid);
+		let treelines = await loadFromSF(lid);
 		genGraph(treelines);
 	}
 
