@@ -309,11 +309,14 @@
 				}
 			});
 		const logsText = await logsResp.text();
+		console.log('logtext');
+		console.log(logsText)
 		return logsLines = logsText.split("\n");
 	}
 
 	async function genTreeFromLogId(lid) {
 		let treelines = await loadFromSF(lid);
+		console.log('treelines');
 		console.log(treelines);
 		genGraph(treelines);
 	}
