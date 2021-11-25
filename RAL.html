@@ -308,7 +308,7 @@
 					'Access-Control-Allow-Origin': 'https://guillaumeperon.github.io',
 				}
 			});
-		const logsText = await dbgResp.text();
+		const logsText = await logsResp.text();
 		return logsLines = logsText.split("\n");
 	}
 
