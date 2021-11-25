@@ -97,7 +97,8 @@
         } else {
 
             // Exchange the authorization code for an access token
-            sendPostRequest(config.token_endpoint, {
+            let token_endpoint = "https://" + document.getElementById("mydomain").value + ".my.salesforce.com" + config.token_uri;
+            sendPostRequest(token_endpoint, {
                 grant_type: "authorization_code",
                 code: q.code,
                 client_id: config.client_id,
