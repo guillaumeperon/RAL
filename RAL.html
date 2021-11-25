@@ -314,6 +314,7 @@
 
 	async function genTreeFromLogId(lid) {
 		let treelines = await loadFromSF(lid);
+		console.log(treelines);
 		genGraph(treelines);
 	}
 
