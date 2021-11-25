@@ -58,6 +58,8 @@
 
         // Build the authorization URL
         let idp_url = "https://" + document.getElementById("mydomain").value + ".my.salesforce.com";
+        sessionStorage.setItem("idp_url", idp_url);
+
         var url = idp_url + config.authorization_uri
             + "?response_type=code"
             + "&client_id=" + encodeURIComponent(config.client_id)
@@ -97,7 +99,7 @@
         } else {
 
             // Exchange the authorization code for an access token
-            let token_endpoint = "https://" + document.getElementById("mydomain").value + ".my.salesforce.com" + config.token_uri;
+            let token_endpoint = sessionStorage.getItem("idp_url") + config.token_uri;
             sendPostRequest(token_endpoint, {
                 grant_type: "authorization_code",
                 code: q.code,
