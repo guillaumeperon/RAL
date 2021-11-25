@@ -95,10 +95,8 @@
 	</div>
 
 	<div>
-		<p> Or select a file: <input type="file" id="fileInput"></input></p>
-	</div>
-	<div>
-		<p> Or <a href="./RALogin.html">Login to an org </a> and <button onclick="showLogList">download load</button>
+		<p> Or select a file: <input type="file" id="fileInput"></input> or <a href="./RALogin.html">Login to an org
+			</a> and <button onclick="showLogList">download load</button>
 		</p>
 	</div>
 	<p> View all IO <input type="checkbox" id="vIO" name="vIO" value="vIO" checked onclick="viewIOs(this)" /></input>
@@ -298,6 +296,8 @@
 	}
 
 	async function loadFromSF(lid) {
+		let tok = localStorage.getItem('otoken');
+		if (!tok) return;
 		const logsResp = await fetch(`https://bouyguestelecom--AP2.my.salesforce.com/services/data/v53.0/sobjects/ApexLog/${lid}/Body/`,
 			{
 				method: 'GET',
