@@ -47,18 +47,18 @@
 
         // Create and store a random "state" value
         var state = generateRandomString();
-        sessionStorage.setItem("pkce_state", state);
+        localStorage.setItem("pkce_state", state);
 
         // Create and store a new PKCE code_verifier (the plaintext random secret)
         var code_verifier = generateRandomString();
-        sessionStorage.setItem("pkce_code_verifier", code_verifier);
+        localStorage.setItem("pkce_code_verifier", code_verifier);
 
         // Hash and base64-urlencode the secret to use as the challenge
         var code_challenge = await pkceChallengeFromVerifier(code_verifier);
 
         // Build the authorization URL
         let idp_url = "https://" + document.getElementById("mydomain").value + ".my.salesforce.com";
-        sessionStorage.setItem("idp_url", idp_url);
+        localStorage.setItem("idp_url", idp_url);
 
         var url = idp_url + config.authorization_uri
             + "?response_type=code"
@@ -94,23 +94,23 @@
     if (q.code) {
 
         // Verify state matches what we set at the beginning
-        if (sessionStorage.getItem("pkce_state") != q.state) {
+        if (localStorage.getItem("pkce_state") != q.state) {
             alert("Invalid state");
         } else {
 
             // Exchange the authorization code for an access token
-            let token_endpoint = sessionStorage.getItem("idp_url") + config.token_uri;
+            let token_endpoint = localStorage.getItem("idp_url") + config.token_uri;
             sendPostRequest(token_endpoint, {
                 grant_type: "authorization_code",
                 code: q.code,
                 client_id: config.client_id,
                 redirect_uri: config.redirect_uri,
-                code_verifier: sessionStorage.getItem("pkce_code_verifier")
+                code_verifier: localStorage.getItem("pkce_code_verifier")
             }, function (request, body) {
-                sessionStorage.setItem('otoken', body.access_token);
+                localStorage.setItem('otoken', body.access_token);
                 // Clean these up since we don't need them anymore
-                sessionStorage.removeItem("pkce_state");
-                sessionStorage.removeItem("pkce_code_verifier");
+                localStorage.removeItem("pkce_state");
+                localStorage.removeItem("pkce_code_verifier");
                 // Replace the history entry to remove the auth code from the browser address bar
                 window.history.replaceState({}, null, "/");
                 window.location = "https://guillaumeperon.github.io/RAL/RAL.html";
