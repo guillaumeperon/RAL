@@ -1,256 +1,326 @@
-<html  lang="en">
-<head>
-<title>RAL</title>
-<style>
-#drop_zone {
-	text-align: center;
-	background-color: lightblue;
-	padding: 8px 8px;
-	border-radius: 8px;
-	width:  600px;
-}
-.opres {
-	background-color:#EBF5FB;
-	border-radius:2px;
-	display:inline-block;
-	cursor:pointer;
-	padding-right: 2px;
-	padding-left: 2px;
-}
-.opinfo {
-	background-color:#c6ccc5;
-	border-radius:2px;
-	display:inline-block;
-	padding-right: 2px;
-	padding-left: 2px;
-}
-.opres:hover {
-	background-color:#AED6F1;
-}
-.opres:active {
-	position:relative;
-	top:1px;
-}
-.code
-{
-	color: black;
-}
-.isIO 
-{ 
-	font-weight:bold;
-	color:#2874A6;
-}
-ul.tree, ul.tree ul {
-list-style: none;
-	margin: 0;
-	padding: 0;
-}
-ul.tree ul {
-	margin-left: 10px;
-}
-ul.tree li {
-	margin: 0;
-	padding: 0 7px;
-	line-height: 20px;
-	color: #369;
-	border-left:1px solid rgb(100,100,100);
+<html lang="en">
 
-}
-ul.tree li:last-child {
-	border-left:none;
-}
-ul.tree li:before {
-	position:relative;
-	top:-0.3em;
-	height:1em;
-	width:12px;
-	color:white;
-	border-bottom:1px solid rgb(100,100,100);
-	content:"";
-	display:inline-block;
-	left:-7px;
-}
-ul.tree li:last-child:before {
-	border-left:1px solid rgb(100,100,100);   
-}
-</style>
+<head>
+	<title>RAL</title>
+	<style>
+		#drop_zone {
+			text-align: center;
+			background-color: lightblue;
+			padding: 8px 8px;
+			border-radius: 8px;
+			width: 600px;
+		}
+
+		.opres {
+			background-color: #EBF5FB;
+			border-radius: 2px;
+			display: inline-block;
+			cursor: pointer;
+			padding-right: 2px;
+			padding-left: 2px;
+		}
+
+		.opinfo {
+			background-color: #c6ccc5;
+			border-radius: 2px;
+			display: inline-block;
+			padding-right: 2px;
+			padding-left: 2px;
+		}
+
+		.opres:hover {
+			background-color: #AED6F1;
+		}
+
+		.opres:active {
+			position: relative;
+			top: 1px;
+		}
+
+		.code {
+			color: black;
+		}
+
+		.isIO {
+			font-weight: bold;
+			color: #2874A6;
+		}
+
+		ul.tree,
+		ul.tree ul {
+			list-style: none;
+			margin: 0;
+			padding: 0;
+		}
+
+		ul.tree ul {
+			margin-left: 10px;
+		}
+
+		ul.tree li {
+			margin: 0;
+			padding: 0 7px;
+			line-height: 20px;
+			color: #369;
+			border-left: 1px solid rgb(100, 100, 100);
+
+		}
+
+		ul.tree li:last-child {
+			border-left: none;
+		}
+
+		ul.tree li:before {
+			position: relative;
+			top: -0.3em;
+			height: 1em;
+			width: 12px;
+			color: white;
+			border-bottom: 1px solid rgb(100, 100, 100);
+			content: "";
+			display: inline-block;
+			left: -7px;
+		}
+
+		ul.tree li:last-child:before {
+			border-left: 1px solid rgb(100, 100, 100);
+		}
+	</style>
 </head>
+
 <body>
 	<p><b>R</b>ead <b>A</b>pex <b>L</b>ogs by G Peron</p>
 	<div id="drop_zone" ondrop="dropHandler(event);" ondragover="dragOverHandler(event);">
 		<p>Drop an APEX log file here</p>
 	</div>
 
-	<div><p> Or select a file: <input type="file" id="fileInput"></p></div>
-	<p> View all IO <input type="checkbox" id="vIO" name="vIO" value="vIO" checked onclick="viewIOs(this)"/> View operations longer than <input type="number" id="minTime" value="10" min="0" onChange="viewAll()"> ms.</p>
-	<ul class="tree" id="treeroot"> <!-- https://gist.github.com/dylancwood/7368914 -->
+	<div>
+		<p> Or select a file: <input type="file" id="fileInput"></input></p>
+	</div>
+	<div>
+		<p> Or <a href="./RALogin.html">Login to an org </a> and <button onclick="showLogList">download load</button>
+		</p>
+	</div>
+	<p> View all IO <input type="checkbox" id="vIO" name="vIO" value="vIO" checked onclick="viewIOs(this)" /></input>
+		View
+		operations longer than <input type="number" id="minTime" value="10" min="0" onChange="viewAll()"></input> ms.
+	</p>
+	<ul class="tree" id="treeroot">
+		<!-- https://gist.github.com/dylancwood/7368914 -->
 		<li>here the call tree</li>
 	</ul>
 </body>
 
 <script>
-// Manage the display of part of a tree
-let treeRoot = {'uid':0,'opStart':0,'opTime':0,'opRes': '<i>cmp info</i>', 'opDetails': 'detailed information', 'isIO':false,  'containsIO' :true,'parent':null, 'children' : [],'hidden':false, 'nbDML':0,'nbSOQL':0,'nbCO':0}
-let eltsById={};
-//let eltsById={0:treeRoot};
+	// Manage the display of part of a tree
+	let treeRoot = { 'uid': 0, 'opStart': 0, 'opTime': 0, 'opRes': '<i>cmp info</i>', 'opDetails': 'detailed information', 'isIO': false, 'containsIO': true, 'parent': null, 'children': [], 'hidden': false, 'nbDML': 0, 'nbSOQL': 0, 'nbCO': 0 }
+	let eltsById = {};
+	//let eltsById={0:treeRoot};
 
 
-function printCallStack(elt){
-	let wrap = false;
-	if(elt.hidden && elt!==treeRoot) return '';
-	if(elt.children.length>0){
-		childStr = elt.children.map(e=>printCallStack(e)).join('');
-		wrap = true;
-	}
-	if(elt.isIO) {
-	outstr = `<li><span class="opinfo">[${elt.opStart}]${elt.opTime?elt.opTime+"ms":""} ${elt.opDetails} line ${elt.opRes}</span>`;
-	}else{
-		outstr = `<li><span class="opRes" ${wrap?`onclick="dowrap(${elt.uid})"`:""}>[${elt.opStart}]${elt.opTime?elt.opTime+"ms":""} ${elt.nbSOQL}soql ${elt.nbCO}co ${elt.nbDML}dml ${wrap?"[+]":""}</span><span class="${elt.isIO?'isIO':'code'}">${elt.opDetails} line ${elt.opRes}</span>`;
-
-	}
-	if(wrap) outstr += '<ul>' + childStr +  '</ul>';
-	outstr += '</li>';
-	return outstr;
-}
-
-let viewIO = true;
-function viewIOs(togg){
-	updateHidden(minTime,minTime,viewIO,togg.checked);
-	viewIO = togg.checked;
-	document.getElementById('treeroot').innerHTML = printCallStack(treeRoot);
-}
-
-minTime = 10;
-function viewAll(togg){
-	newTime = document.getElementById('minTime').value;
-	updateHidden(minTime,newTime,viewIO,viewIO);
-	minTime = newTime;
-	document.getElementById('treeroot').innerHTML = printCallStack(treeRoot);
-}
-
-function dowrap(cmpid){
-	children = eltsById[cmpid].children;
-	numvisible = children.reduce((acc, curr)=>acc+(curr.hidden?0:1),0);
-	if(numvisible===0){ // all elts hidden, show those longer than.. or with io
-		for(let elt of children) elt.hidden=(elt.opTime<minTime) && ((!elt.containsIO)||(!viewIO));
-	}else if(numvisible===children.length){ // all visible : hide all
-		for(let elt of children) elt.hidden=true;
-	}else{ // some visible : show all
-		for(let elt of children) elt.hidden=false;
-	}
-	document.getElementById('treeroot').innerHTML = printCallStack(treeRoot);
-}
-
-// update component hidden status
-// if old status was not the "calculated one", it was done manually, dont change it
-function updateHidden(fromms,toms,fromio,toio){
-	for(anelt of Object.values(eltsById)){
-		if(fromms != null){
-			oldAutoState = (anelt.opTime<fromms) && ((!anelt.containsIO)||(!fromio));
-			if(anelt.hidden!=oldAutoState) continue;	
+	function printCallStack(elt) {
+		let wrap = false;
+		if (elt.hidden && elt !== treeRoot) return '';
+		if (elt.children.length > 0) {
+			childStr = elt.children.map(e => printCallStack(e)).join('');
+			wrap = true;
 		}
-		anelt.hidden = (anelt.opTime<toms) && ((!anelt.containsIO)||(!toio));
-	}
-}
+		if (elt.isIO) {
+			outstr = `<li><span class="opinfo">[${elt.opStart}]${elt.opTime ? elt.opTime + "ms" : ""} ${elt.opDetails} line ${elt.opRes}</span>`;
+		} else {
+			outstr = `<li><span class="opRes" ${wrap ? `onclick="dowrap(${elt.uid})"` : ""}>[${elt.opStart}]${elt.opTime ? elt.opTime + "ms" : ""} ${elt.nbSOQL}soql ${elt.nbCO}co ${elt.nbDML}dml ${wrap ? "[+]" : ""}</span><span class="${elt.isIO ? 'isIO' : 'code'}">${elt.opDetails} line ${elt.opRes}</span>`;
 
-
-// Loading of log files
-// cf https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop
-function dropHandler(ev) {
-	ev.preventDefault();  
-	if (ev.dataTransfer.items) {
-	  for (var i = 0; i < ev.dataTransfer.items.length; i++) {
-		if (ev.dataTransfer.items[i].kind === 'file') {
-		  var file = ev.dataTransfer.items[i].getAsFile();
-		  readTheFile(file);
-		  break;
 		}
-	  }
-	} else {
-		readTheFile(ev.dataTransfer.files[0].name);
+		if (wrap) outstr += '<ul>' + childStr + '</ul>';
+		outstr += '</li>';
+		return outstr;
 	}
-}
 
-function dragOverHandler(ev) {
-  	ev.preventDefault();
-}
-
-var fileInput = document.getElementById('fileInput');
-
-fileInput.addEventListener('change', function(e) {
-	var file = fileInput.files[0];
-	readTheFile(file);
-});
-
-function readTheFile(thefile){
-	var reader = new FileReader();
-	reader.onload = function(e) {
-		let datList = reader.result.split("\n");
-		reader.result = null;
-		genGraph(datList);
+	let viewIO = true;
+	function viewIOs(togg) {
+		updateHidden(minTime, minTime, viewIO, togg.checked);
+		viewIO = togg.checked;
+		document.getElementById('treeroot').innerHTML = printCallStack(treeRoot);
 	}
-	reader.readAsText(thefile);  	
-}
 
+	minTime = 10;
+	function viewAll(togg) {
+		newTime = document.getElementById('minTime').value;
+		updateHidden(minTime, newTime, viewIO, viewIO);
+		minTime = newTime;
+		document.getElementById('treeroot').innerHTML = printCallStack(treeRoot);
+	}
 
-function genGraph(thelines){
-	nextID=0;
-	for(b of thelines){
-		bb = b.split('|');
-		if(bb.length<3) continue;
-		//timeStamp=bb[0].slice(0,12);
-		timeDelta=bb[0].slice(bb[0].indexOf('(')+1,-1);
-		opType = bb[1];
-		lineNum=bb[2]?bb[2].slice(1,-1):'-';
-		if(['CODE_UNIT_STARTED','METHOD_ENTRY','SOQL_EXECUTE_BEGIN','DML_BEGIN','CALLOUT_REQUEST','CONSTRUCTOR_ENTRY','FLOW_CREATE_INTERVIEW_END','EXCEPTION_THROWN','FATAL_ERROR','USER_DEBUG'].includes(opType)){
-			opDET = (opType==='CONSTRUCTOR_ENTRY')?('new ' + bb[5]):((bb[4])?bb[4]:bb[3]);
-			if(opType==='DML_BEGIN') opDET = `DML ${bb[3].split(':')[1]} ${bb[4].split(':')[1]} ${bb[5].split(':')[1]} rows`
-			if(opType==='FATAL_ERROR') opDET = bb[2];
-			if(opType==='USER_DEBUG') opDET = bb[3] + ' ' + bb[4];
-			newPoint = {
-				'uid' : ++nextID,
-				'opStart': Math.trunc((timeDelta)/1000000),
-				'opTime': timeDelta,
-				'opRes' : lineNum,
-				'isIO'  : (['EXCEPTION_THROWN','FATAL_ERROR','SOQL_EXECUTE_BEGIN','DML_BEGIN','CALLOUT_REQUEST','USER_DEBUG'].includes(opType))?true:false,
-				'parent': treeRoot,
-				'hidden'  : false,
-				'nbDML' : (opType==='DML_BEGIN')?1:0,
-				'nbSOQL': (opType==='SOQL_EXECUTE_BEGIN')?1:0,
-				'nbCO'  : (opType==='CALLOUT_REQUEST')?1:0,
-				'containsIO': (['CODE_UNIT_STARTED','METHOD_ENTRY','CONSTRUCTOR_ENTRY'].includes(opType))?false:true,
-				'children' : []
-			};
-			eltsById[nextID] = newPoint;
-			newPoint.opDetails =  opDET.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-			treeRoot.children.push(newPoint);
-			if(['EXCEPTION_THROWN','FATAL_ERROR','USER_DEBUG'].includes(opType)) newPoint.opTime = 0;
-			else treeRoot = newPoint;
+	function dowrap(cmpid) {
+		children = eltsById[cmpid].children;
+		numvisible = children.reduce((acc, curr) => acc + (curr.hidden ? 0 : 1), 0);
+		if (numvisible === 0) { // all elts hidden, show those longer than.. or with io
+			for (let elt of children) elt.hidden = (elt.opTime < minTime) && ((!elt.containsIO) || (!viewIO));
+		} else if (numvisible === children.length) { // all visible : hide all
+			for (let elt of children) elt.hidden = true;
+		} else { // some visible : show all
+			for (let elt of children) elt.hidden = false;
 		}
-		if(['SOQL_EXECUTE_END','DML_END','CALLOUT_RESPONSE','CODE_UNIT_FINISHED','METHOD_EXIT','CONSTRUCTOR_EXIT','FLOW_INTERVIEW_FINISHED'].includes(opType)){
-			treeRoot.opTime = Math.trunc((timeDelta)/1000000)  - treeRoot.opStart;
-			if(treeRoot.isIO){
-				treeRoot.opRes += ', ' + bb[3];
-				treeRoot.containsIO = true;
+		document.getElementById('treeroot').innerHTML = printCallStack(treeRoot);
+	}
+
+	// update component hidden status
+	// if old status was not the "calculated one", it was done manually, dont change it
+	function updateHidden(fromms, toms, fromio, toio) {
+		for (anelt of Object.values(eltsById)) {
+			if (fromms != null) {
+				oldAutoState = (anelt.opTime < fromms) && ((!anelt.containsIO) || (!fromio));
+				if (anelt.hidden != oldAutoState) continue;
 			}
-			if(treeRoot.parent){
-				treeRoot.parent.nbSOQL += treeRoot.nbSOQL;
-				treeRoot.parent.nbCO += treeRoot.nbCO;
-				treeRoot.parent.nbDML += treeRoot.nbDML;
-				treeRoot.parent.containsIO = treeRoot.containsIO;
-				treeRoot = treeRoot.parent;
-			}
+			anelt.hidden = (anelt.opTime < toms) && ((!anelt.containsIO) || (!toio));
 		}
 	}
-	while(treeRoot.parent){
-		treeRoot.parent.nbSOQL += treeRoot.nbSOQL;
-		treeRoot.parent.nbCO += treeRoot.nbCO;
-		treeRoot.parent.containsIO = treeRoot.containsIO;
-		treeRoot = treeRoot.parent;
+
+
+	// Loading of log files
+	// cf https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop
+	function dropHandler(ev) {
+		ev.preventDefault();
+		if (ev.dataTransfer.items) {
+			for (var i = 0; i < ev.dataTransfer.items.length; i++) {
+				if (ev.dataTransfer.items[i].kind === 'file') {
+					var file = ev.dataTransfer.items[i].getAsFile();
+					readTheFile(file);
+					break;
+				}
+			}
+		} else {
+			readTheFile(ev.dataTransfer.files[0].name);
+		}
 	}
-	updateHidden(null,minTime,null,viewIO);
-	document.getElementById('treeroot').innerHTML = printCallStack(treeRoot);
-}
+
+	function dragOverHandler(ev) {
+		ev.preventDefault();
+	}
+
+	var fileInput = document.getElementById('fileInput');
+
+	fileInput.addEventListener('change', function (e) {
+		var file = fileInput.files[0];
+		readTheFile(file);
+	});
+
+	function readTheFile(thefile) {
+		var reader = new FileReader();
+		reader.onload = function (e) {
+			let datList = reader.result.split("\n");
+			reader.result = null;
+			genGraph(datList);
+		}
+		reader.readAsText(thefile);
+	}
+
+
+	function genGraph(thelines) {
+		nextID = 0;
+		for (b of thelines) {
+			bb = b.split('|');
+			if (bb.length < 3) continue;
+			//timeStamp=bb[0].slice(0,12);
+			timeDelta = bb[0].slice(bb[0].indexOf('(') + 1, -1);
+			opType = bb[1];
+			lineNum = bb[2] ? bb[2].slice(1, -1) : '-';
+			if (['CODE_UNIT_STARTED', 'METHOD_ENTRY', 'SOQL_EXECUTE_BEGIN', 'DML_BEGIN', 'CALLOUT_REQUEST', 'CONSTRUCTOR_ENTRY', 'FLOW_CREATE_INTERVIEW_END', 'EXCEPTION_THROWN', 'FATAL_ERROR', 'USER_DEBUG'].includes(opType)) {
+				opDET = (opType === 'CONSTRUCTOR_ENTRY') ? ('new ' + bb[5]) : ((bb[4]) ? bb[4] : bb[3]);
+				if (opType === 'DML_BEGIN') opDET = `DML ${bb[3].split(':')[1]} ${bb[4].split(':')[1]} ${bb[5].split(':')[1]} rows`
+				if (opType === 'FATAL_ERROR') opDET = bb[2];
+				if (opType === 'USER_DEBUG') opDET = bb[3] + ' ' + bb[4];
+				newPoint = {
+					'uid': ++nextID,
+					'opStart': Math.trunc((timeDelta) / 1000000),
+					'opTime': timeDelta,
+					'opRes': lineNum,
+					'isIO': (['EXCEPTION_THROWN', 'FATAL_ERROR', 'SOQL_EXECUTE_BEGIN', 'DML_BEGIN', 'CALLOUT_REQUEST', 'USER_DEBUG'].includes(opType)) ? true : false,
+					'parent': treeRoot,
+					'hidden': false,
+					'nbDML': (opType === 'DML_BEGIN') ? 1 : 0,
+					'nbSOQL': (opType === 'SOQL_EXECUTE_BEGIN') ? 1 : 0,
+					'nbCO': (opType === 'CALLOUT_REQUEST') ? 1 : 0,
+					'containsIO': (['CODE_UNIT_STARTED', 'METHOD_ENTRY', 'CONSTRUCTOR_ENTRY'].includes(opType)) ? false : true,
+					'children': []
+				};
+				eltsById[nextID] = newPoint;
+				newPoint.opDetails = opDET.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+				treeRoot.children.push(newPoint);
+				if (['EXCEPTION_THROWN', 'FATAL_ERROR', 'USER_DEBUG'].includes(opType)) newPoint.opTime = 0;
+				else treeRoot = newPoint;
+			}
+			if (['SOQL_EXECUTE_END', 'DML_END', 'CALLOUT_RESPONSE', 'CODE_UNIT_FINISHED', 'METHOD_EXIT', 'CONSTRUCTOR_EXIT', 'FLOW_INTERVIEW_FINISHED'].includes(opType)) {
+				treeRoot.opTime = Math.trunc((timeDelta) / 1000000) - treeRoot.opStart;
+				if (treeRoot.isIO) {
+					treeRoot.opRes += ', ' + bb[3];
+					treeRoot.containsIO = true;
+				}
+				if (treeRoot.parent) {
+					treeRoot.parent.nbSOQL += treeRoot.nbSOQL;
+					treeRoot.parent.nbCO += treeRoot.nbCO;
+					treeRoot.parent.nbDML += treeRoot.nbDML;
+					treeRoot.parent.containsIO = treeRoot.containsIO;
+					treeRoot = treeRoot.parent;
+				}
+			}
+		}
+		while (treeRoot.parent) {
+			treeRoot.parent.nbSOQL += treeRoot.nbSOQL;
+			treeRoot.parent.nbCO += treeRoot.nbCO;
+			treeRoot.parent.containsIO = treeRoot.containsIO;
+			treeRoot = treeRoot.parent;
+		}
+		updateHidden(null, minTime, null, viewIO);
+		document.getElementById('treeroot').innerHTML = printCallStack(treeRoot);
+	}
+
+
+	async function showLogList() {
+		let tok = localStorage.getItem('otoken');
+		if (!tok) return;
+		const fields = ['Application', 'DurationMilliseconds', 'Id', 'Location', 'LogLength', 'LogUserId', 'Operation', 'StartTime', 'Status'];
+		const dbgResp = await fetch('https://bouyguestelecom--AP2.my.salesforce.com/services/data/v53.0/tooling/query/?q=select+' + fields.join('+,+') + '+from+apexlog',
+			{
+				method: 'GET',
+				mode: 'cors',
+				headers: {
+					'Access-Control-Allow-Methods': 'GET',
+					'Authorization': 'Bearer ' + tok,
+					'Access-Control-Allow-Origin': 'https://guillaumeperon.github.io',
+				}
+			});
+		const dbgList = await dbgResp.json();
+
+		document.getElementById('treeroot').innerHTML = '<table><tr><th>' + fields.join('</th><th>') + '</th><th>load</th></tr><tr><td>' +
+			dbgList.records.map(r => fields.map(f => r[f]).join('</td><td>') + `<th><a href="./RAL.html?logid=${r['Id']}">load</a></th>`).join('</td></tr><tr><td>') +
+			'</td></tr></table>';
+	}
+
+	async function loadFromSF(lid) {
+		const logsResp = await fetch(`https://bouyguestelecom--AP2.my.salesforce.com/services/data/v53.0/sobjects/ApexLog/${lid}/Body/`,
+			{
+				method: 'GET',
+				mode: 'cors',
+				headers: {
+					'Access-Control-Allow-Methods': 'GET',
+					'Authorization': 'Bearer ' + tok,
+					'Access-Control-Allow-Origin': 'https://guillaumeperon.github.io',
+				}
+			});
+		const logsText = await dbgResp.text();
+		return logsLines = logsText.split("\n");
+	}
+
+	async function genTreeFromLogId(lid) {
+		let treelines = loadFromSF(lid);
+		genGraph(treelines);
+	}
+
+	let logid = window.location.search.substring(7);
+	if (logid) loadFromSF(logid);
+
 
 </script>
+
 </html>
