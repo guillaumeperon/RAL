@@ -95,7 +95,7 @@
 	</div>
 
 	<div>
-		<p> <a href="./RALogin.html">Login to an org</a> and <button onclick="showLogList()">Pick log</button>
+		<p> <a href="./RALogin.html">Login to an org</a> and <button onclick="showLogList()">Pick on your org</button>
 			or select a file: <input type="file" id="fileInput"></input>
 		</p>
 	</div>
@@ -113,8 +113,8 @@
 	// Manage the display of part of a tree
 	let treeRoot = { 'uid': 0, 'opStart': 0, 'opTime': 0, 'opRes': '<i>cmp info</i>', 'opDetails': 'detailed information', 'isIO': false, 'containsIO': true, 'parent': null, 'children': [], 'hidden': false, 'nbDML': 0, 'nbSOQL': 0, 'nbCO': 0 }
 	let eltsById = {};
-	//let eltsById={0:treeRoot};
-
+	let viewIO = true;
+	let minTime = 10;
 
 	function printCallStack(elt) {
 		let wrap = false;
@@ -134,14 +134,12 @@
 		return outstr;
 	}
 
-	let viewIO = true;
 	function viewIOs(togg) {
 		updateHidden(minTime, minTime, viewIO, togg.checked);
 		viewIO = togg.checked;
 		document.getElementById('treeroot').innerHTML = printCallStack(treeRoot);
 	}
 
-	minTime = 10;
 	function viewAll(togg) {
 		newTime = document.getElementById('minTime').value;
 		updateHidden(minTime, newTime, viewIO, viewIO);
@@ -174,47 +172,10 @@
 		}
 	}
 
-
-	// Loading of log files
-	// cf https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop
-	function dropHandler(ev) {
-		ev.preventDefault();
-		if (ev.dataTransfer.items) {
-			for (var i = 0; i < ev.dataTransfer.items.length; i++) {
-				if (ev.dataTransfer.items[i].kind === 'file') {
-					var file = ev.dataTransfer.items[i].getAsFile();
-					readTheFile(file);
-					break;
-				}
-			}
-		} else {
-			readTheFile(ev.dataTransfer.files[0].name);
-		}
-	}
-
-	function dragOverHandler(ev) {
-		ev.preventDefault();
-	}
-
-	var fileInput = document.getElementById('fileInput');
-
-	fileInput.addEventListener('change', function (e) {
-		var file = fileInput.files[0];
-		readTheFile(file);
-	});
-
-	function readTheFile(thefile) {
-		var reader = new FileReader();
-		reader.onload = function (e) {
-			let datList = reader.result.split("\n");
-			reader.result = null;
-			genGraph(datList);
-		}
-		reader.readAsText(thefile);
-	}
-
-
+	// parse the log
 	function genGraph(thelines) {
+		treeRoot = { 'uid': 0, 'opStart': 0, 'opTime': 0, 'opRes': '<i>cmp info</i>', 'opDetails': 'detailed information', 'isIO': false, 'containsIO': true, 'parent': null, 'children': [], 'hidden': false, 'nbDML': 0, 'nbSOQL': 0, 'nbCO': 0 }
+		eltsById = {};
 		nextID = 0;
 		for (b of thelines) {
 			bb = b.split('|');
@@ -273,7 +234,46 @@
 		document.getElementById('treeroot').innerHTML = printCallStack(treeRoot);
 	}
 
+	// Loading of log files
 
+	// drop file cf https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop
+	function dropHandler(ev) {
+		ev.preventDefault();
+		if (ev.dataTransfer.items) {
+			for (var i = 0; i < ev.dataTransfer.items.length; i++) {
+				if (ev.dataTransfer.items[i].kind === 'file') {
+					var file = ev.dataTransfer.items[i].getAsFile();
+					readTheFile(file);
+					break;
+				}
+			}
+		} else {
+			readTheFile(ev.dataTransfer.files[0].name);
+		}
+	}
+
+	function dragOverHandler(ev) {
+		ev.preventDefault();
+	}
+
+	// choose file button
+	var fileInput = document.getElementById('fileInput');
+	fileInput.addEventListener('change', function (e) {
+		var file = fileInput.files[0];
+		readTheFile(file);
+	});
+
+	function readTheFile(thefile) {
+		var reader = new FileReader();
+		reader.onload = function (e) {
+			let datList = reader.result.split("\n");
+			reader.result = null;
+			genGraph(datList);
+		}
+		reader.readAsText(thefile);
+	}
+
+	// pick log from org with API
 	async function showLogList() {
 		let tok = localStorage.getItem('otoken');
 		if (!tok) return;
@@ -321,5 +321,4 @@
 	if (logid) displayLog(logid);
 
 </script>
-
 </html>
