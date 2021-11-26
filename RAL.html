@@ -296,6 +296,7 @@
 	}
 
 	async function loadFromSF(lid) {
+		console.log('load logs from SF start');
 		let tok = localStorage.getItem('otoken');
 		if (!tok) return;
 		const logsResp = await fetch(`https://bouyguestelecom--AP2.my.salesforce.com/services/data/v53.0/sobjects/ApexLog/${lid}/Body/`,
@@ -308,6 +309,7 @@
 					'Access-Control-Allow-Origin': 'https://guillaumeperon.github.io',
 				}
 			});
+		console.log('load logs from SF ' + logsResp.status);
 		const logsText = await logsResp.text();
 		console.log('logtext');
 		console.log(logsText)
