@@ -278,7 +278,7 @@
 		let tok = localStorage.getItem('otoken');
 		if (!tok) return;
 		const fields = ['Application', 'DurationMilliseconds', 'Id', 'Location', 'LogLength', 'LogUserId', 'Operation', 'StartTime', 'Status'];
-		const dbgResp = await fetch('https://bouyguestelecom--AP2.my.salesforce.com/services/data/v53.0/tooling/query/?q=select+' + fields.join('+,+') + '+from+apexlog',
+		const dbgResp = await fetch(`https://bouyguestelecom--AP2.my.salesforce.com/services/data/v53.0/tooling/query/?q=select+${fields.join('+,+')}+from+apexlog`,
 			{
 				method: 'GET',
 				mode: 'cors',
@@ -296,7 +296,6 @@
 	}
 
 	async function loadFromSF(lid) {
-		console.log('load logs from SF start');
 		let tok = localStorage.getItem('otoken');
 		if (!tok) return;
 		const logsResp = await fetch(`https://bouyguestelecom--AP2.my.salesforce.com/services/data/v53.0/sobjects/ApexLog/${lid}/Body/`,
@@ -309,23 +308,15 @@
 					'Access-Control-Allow-Origin': 'https://guillaumeperon.github.io',
 				}
 			});
-		console.log('load logs from SF ' + logsResp.status);
 		const logsText = await logsResp.text();
-		console.log('logtext');
-		console.log(logsText)
 		return logsLines = logsText.split("\n");
 	}
 
-	async function genTreeFromLogId(lid) {
-		let treelines = await loadFromSF(lid);
-		console.log('treelines');
-		console.log(treelines);
+	let logid = window.location.search.substring(7);
+	if (logid) {
+		loadFromSF(logid);
 		genGraph(treelines);
 	}
-
-	let logid = window.location.search.substring(7);
-	if (logid) genTreeFromLogId(logid);
-
 
 </script>
 
