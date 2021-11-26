@@ -314,7 +314,7 @@
 
 	let logid = window.location.search.substring(7);
 	if (logid) {
-		loadFromSF(logid);
+		const treelines = loadFromSF(logid);
 		genGraph(treelines);
 	}
 
