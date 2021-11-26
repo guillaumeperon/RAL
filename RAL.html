@@ -312,11 +312,13 @@
 		return logsLines = logsText.split("\n");
 	}
 
-	let logid = window.location.search.substring(7);
-	if (logid) {
+	function displayLog(lgid) {
 		const treelines = await loadFromSF(logid);
 		genGraph(treelines);
 	}
+
+	let logid = window.location.search.substring(7);
+	if (logid) displayLog(logid);
 
 </script>
 
