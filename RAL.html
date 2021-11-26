@@ -312,7 +312,7 @@
 		return logsLines = logsText.split("\n");
 	}
 
-	function displayLog(lgid) {
+	async function displayLog(lgid) {
 		const treelines = await loadFromSF(logid);
 		genGraph(treelines);
 	}
