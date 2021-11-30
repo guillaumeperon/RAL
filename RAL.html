@@ -277,7 +277,7 @@
 	async function showLogList() {
 		let tok = localStorage.getItem('otoken');
 		if (!tok) return;
-		const fields = ['Application', 'DurationMilliseconds', 'Id', 'Location', 'LogLength', 'LogUserId', 'Operation', 'StartTime', 'Status'];
+		const fields = ['Application', 'DurationMilliseconds', 'Id', 'LogLength', 'LogUser.name', 'Operation', 'StartTime', 'Status'];
 		const dbgResp = await fetch(`https://bouyguestelecom--AP2.my.salesforce.com/services/data/v53.0/tooling/query/?q=select+${fields.join('+,+')}+from+apexlog`,
 			{
 				method: 'GET',
@@ -290,9 +290,9 @@
 			});
 		const dbgList = await dbgResp.json();
 
-		document.getElementById('treeroot').innerHTML = '<table><tr><th>' + fields.join('</th><th>') + '</th><th>load</th></tr><tr><td>' +
-			dbgList.records.map(r => fields.map(f => r[f]).join('</td><td>') + `<th><a href="./RAL.html?logid=${r['Id']}">load</a></th>`).join('</td></tr><tr><td>') +
-			'</td></tr></table>';
+		document.getElementById('treeroot').innerHTML = '<table><tr>' + fields.map(f=>`<th>${f}</th>`).join('') + '<th>load</th></tr>' +
+			dbgList.records.map(r=>fields.map(f=>`<td>${r[f]}</td>`).join('')+`<td><a href="./RAL.html?logid=${r['Id']}">load</a></td>`)
+				.map(r=>`<tr>${r}</tr>`).join('') + '</table>';
 	}
 
 	async function loadFromSF(lid) {
