@@ -278,7 +278,8 @@
 		let tok = localStorage.getItem('otoken');
 		if (!tok) return;
 		const fields = ['Application', 'DurationMilliseconds', 'Id', 'LogLength', 'LogUser.name', 'Operation', 'StartTime', 'Status'];
-		const dbgResp = await fetch(`https://bouyguestelecom--AP2.my.salesforce.com/services/data/v53.0/tooling/query/?q=select+${fields.join('+,+')}+from+apexlog`,
+		let sv_endpoint = localStorage.getItem("idp_url");
+		const dbgResp = await fetch(`${sv_endpoint}/services/data/v53.0/tooling/query/?q=select+${fields.join('+,+')}+from+apexlog`,
 			{
 				method: 'GET',
 				mode: 'cors',
@@ -298,7 +299,8 @@
 	async function loadFromSF(lid) {
 		let tok = localStorage.getItem('otoken');
 		if (!tok) return;
-		const logsResp = await fetch(`https://bouyguestelecom--AP2.my.salesforce.com/services/data/v53.0/sobjects/ApexLog/${lid}/Body/`,
+		let sv_endpoint = localStorage.getItem("idp_url");
+		const logsResp = await fetch(`${sv_endpoint}/services/data/v53.0/sobjects/ApexLog/${lid}/Body/`,
 			{
 				method: 'GET',
 				mode: 'cors',
