@@ -99,7 +99,8 @@
 			or select a file: <input type="file" id="fileInput"></input>
 		</p>
 	</div>
-	<p> View all IO <input type="checkbox" id="vIO" name="vIO" value="vIO" checked onclick="viewIOs(this)" /></input>
+	<p> View all IO (↑ read ↓ write → callout) <input type="checkbox" id="vIO" name="vIO" value="vIO" checked
+			onclick="viewIOs(this)" /></input>
 		View
 		operations longer than <input type="number" id="minTime" value="10" min="0" onChange="viewAll()"></input> ms.
 	</p>
@@ -110,8 +111,60 @@
 </body>
 
 <script>
+	class TreeNode {
+		uid = 0;
+		opType = 'OP_TYPE';
+		opStart = 0;
+		opTime = 0;
+		opRes = '<i>cmp info</i>';
+		opDetails = 'detailed information';
+		parent = null
+		children = [];
+		hidden = false;
+		isIO = false;
+		containsIO = true;
+		nbDML = 0;
+		nbSOQL = 0;
+		nbCO = 0;
+
+		initNode(nextID, timeDelta, lineNum, treeRoot, opType) {
+			this.uid = nextID;
+			this.opType = opType;
+			this.opStart = Math.trunc((timeDelta) / 1000000);
+			this.opTime = timeDelta;
+			this.opRes = lineNum;
+			this.parent = treeRoot;
+			this.isIO = (['EXCEPTION_THROWN', 'FATAL_ERROR', 'SOQL_EXECUTE_BEGIN', 'DML_BEGIN', 'CALLOUT_REQUEST', 'USER_DEBUG'].includes(opType)) ? true : false;
+			this.containsIO = (['CODE_UNIT_STARTED', 'METHOD_ENTRY', 'CONSTRUCTOR_ENTRY'].includes(opType)) ? false : true;
+			this.nbDML = (opType === 'DML_BEGIN') ? 1 : 0;
+			this.nbSOQL = (opType === 'SOQL_EXECUTE_BEGIN') ? 1 : 0;
+			this.nbCO = (opType === 'CALLOUT_REQUEST') ? 1 : 0;
+		}
+
+		nodeTag() {
+			let wrap = (this.children.length > 0);
+			let ioList = '';
+			let wrapSymbol = "";
+			if (wrap) {
+				ioList += (this.nbSOQL > 0) ? (this.nbSOQL + "↑") : '';
+				ioList += (this.nbDML > 0) ? (this.nbDML + "↓") : '';
+				ioList += (this.nbCO > 0) ? (this.nbCO + "→") : '';
+				if (this.children.findIndex(a => a.hidden == true) > -1) wrapSymbol = "👉";
+			}
+			let outstr = '<li>';
+			if (this.isIO) {
+				outstr += `<span class="opinfo" ${wrap ? `onclick="dowrap(${this.uid})"` : ""}>[${this.opStart}${this.opTime ? "+" + this.opTime + "ms" : ""}] ${wrapSymbol} line ${this.opRes} ${this.opDetails} </span>`;
+			} else {
+				outstr += `<span class="opRes" ${wrap ? `onclick="dowrap(${this.uid})"` : ""}>[${this.opStart}${this.opTime ? "+" + this.opTime + "ms" : ""} ${ioList} ${wrapSymbol}]</span><span class="${this.isIO ? 'isIO' : 'code'}">${this.opDetails} line ${this.opRes}</span>`;
+
+			}
+			return outstr;
+		}
+	}
+
+
 	// Manage the display of part of a tree
-	let treeRoot = { 'uid': 0, 'opStart': 0, 'opTime': 0, 'opRes': '<i>cmp info</i>', 'opDetails': 'detailed information', 'isIO': false, 'containsIO': true, 'parent': null, 'children': [], 'hidden': false, 'nbDML': 0, 'nbSOQL': 0, 'nbCO': 0 }
+	let treeRoot = new TreeNode();
 	let eltsById = {};
 	let viewIO = true;
 	let minTime = 10;
@@ -123,12 +176,7 @@
 			childStr = elt.children.map(e => printCallStack(e)).join('');
 			wrap = true;
 		}
-		if (elt.isIO) {
-			outstr = `<li><span class="opinfo">[${elt.opStart}]${elt.opTime ? elt.opTime + "ms" : ""} ${elt.opDetails} line ${elt.opRes}</span>`;
-		} else {
-			outstr = `<li><span class="opRes" ${wrap ? `onclick="dowrap(${elt.uid})"` : ""}>[${elt.opStart}]${elt.opTime ? elt.opTime + "ms" : ""} ${elt.nbSOQL}soql ${elt.nbCO}co ${elt.nbDML}dml ${wrap ? "[+]" : ""}</span><span class="${elt.isIO ? 'isIO' : 'code'}">${elt.opDetails} line ${elt.opRes}</span>`;
-
-		}
+		outstr = elt.nodeTag();
 		if (wrap) outstr += '<ul>' + childStr + '</ul>';
 		outstr += '</li>';
 		return outstr;
@@ -172,12 +220,31 @@
 		}
 	}
 
+	// Reducer function to highlist object names in SOQL queries
+	function formatSOQL(firstPart, token, index) {
+		if (token.toUpperCase() === 'FROM') return `${firstPart} <b>FROM`;
+		if (firstPart.endsWith('FROM')) return `${firstPart} ${token}</b>`;
+		return `${firstPart} ${token}`;
+	}
+
+	const detailMsgs = {
+		'SOQL_EXECUTE_BEGIN': bb => bb[4].split(/[ ,]/).reduce(formatSOQL, ''),
+		'DML_BEGIN': bb => `DML ${bb[3].split(':')[1]} ${bb[5].split(':')[1]} ${bb[4].split(':')[1]}`,
+		'CALLOUT_REQUEST': bb => bb[3].replace(/.*\[/, '').replace(/\].*/, ''),
+		'FATAL_ERROR': bb => bb[2],
+		'CONSTRUCTOR_ENTRY': bb => `new ${bb[5]}`,
+		'USER_DEBUG': bb => bb[3] + ' ' + bb[4],
+		'DEFAULT': bb => (bb[4]) ? bb[4] : bb[3]
+	}
+
+
 	// parse the log
 	function genGraph(thelines) {
-		treeRoot = { 'uid': 0, 'opStart': 0, 'opTime': 0, 'opRes': '<i>cmp info</i>', 'opDetails': 'detailed information', 'isIO': false, 'containsIO': true, 'parent': null, 'children': [], 'hidden': false, 'nbDML': 0, 'nbSOQL': 0, 'nbCO': 0 }
+		treeRoot = new TreeNode();
 		eltsById = {};
 		nextID = 0;
 		for (b of thelines) {
+			nextID += 1;
 			bb = b.split('|');
 			if (bb.length < 3) continue;
 			//timeStamp=bb[0].slice(0,12);
@@ -185,34 +252,36 @@
 			opType = bb[1];
 			lineNum = bb[2] ? bb[2].slice(1, -1) : '-';
 			if (['CODE_UNIT_STARTED', 'METHOD_ENTRY', 'SOQL_EXECUTE_BEGIN', 'DML_BEGIN', 'CALLOUT_REQUEST', 'CONSTRUCTOR_ENTRY', 'FLOW_CREATE_INTERVIEW_END', 'EXCEPTION_THROWN', 'FATAL_ERROR', 'USER_DEBUG'].includes(opType)) {
-				opDET = (opType === 'CONSTRUCTOR_ENTRY') ? ('new ' + bb[5]) : ((bb[4]) ? bb[4] : bb[3]);
-				if (opType === 'DML_BEGIN') opDET = `DML ${bb[3].split(':')[1]} ${bb[4].split(':')[1]} ${bb[5].split(':')[1]} rows`
-				if (opType === 'FATAL_ERROR') opDET = bb[2];
-				if (opType === 'USER_DEBUG') opDET = bb[3] + ' ' + bb[4];
-				newPoint = {
-					'uid': ++nextID,
-					'opStart': Math.trunc((timeDelta) / 1000000),
-					'opTime': timeDelta,
-					'opRes': lineNum,
-					'isIO': (['EXCEPTION_THROWN', 'FATAL_ERROR', 'SOQL_EXECUTE_BEGIN', 'DML_BEGIN', 'CALLOUT_REQUEST', 'USER_DEBUG'].includes(opType)) ? true : false,
-					'parent': treeRoot,
-					'hidden': false,
-					'nbDML': (opType === 'DML_BEGIN') ? 1 : 0,
-					'nbSOQL': (opType === 'SOQL_EXECUTE_BEGIN') ? 1 : 0,
-					'nbCO': (opType === 'CALLOUT_REQUEST') ? 1 : 0,
-					'containsIO': (['CODE_UNIT_STARTED', 'METHOD_ENTRY', 'CONSTRUCTOR_ENTRY'].includes(opType)) ? false : true,
-					'children': []
-				};
+				newPoint = new TreeNode();
+				newPoint.initNode(nextID, timeDelta, lineNum, treeRoot, opType);
 				eltsById[nextID] = newPoint;
-				newPoint.opDetails = opDET.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+				/*
+				opDET = (opType === 'CONSTRUCTOR_ENTRY') ? ('new ' + bb[5]) : ((bb[4]) ? bb[4] : bb[3]);
+				if (opType === 'SOQL_EXECUTE_BEGIN') newPoint.opDetails = bb[4].split(/[ ,]/).reduce(formatSOQL, '');
+				if (opType === 'DML_BEGIN') opDET = `DML ${bb[3].split(':')[1]} ${bb[5].split(':')[1]} ${bb[4].split(':')[1]}`; */
+				//if (opType === 'CALLOUT_REQUEST') opDET = bb[3].replace(/.*\[/, '').replace(/\].*/, '');
+				/* if (opType === 'FATAL_ERROR') opDET = bb[2];
+				if (opType === 'USER_DEBUG') opDET = bb[3] + ' ' + bb[4]; */
+				newPoint.opDetails = (detailMsgs[opType] || detailMsgs['DEFAULT'])(bb);
+				if (opType !== 'SOQL_EXECUTE_BEGIN') newPoint.opDetails = newPoint.opDetails.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 				treeRoot.children.push(newPoint);
 				if (['EXCEPTION_THROWN', 'FATAL_ERROR', 'USER_DEBUG'].includes(opType)) newPoint.opTime = 0;
 				else treeRoot = newPoint;
 			}
-			if (['SOQL_EXECUTE_END', 'DML_END', 'CALLOUT_RESPONSE', 'CODE_UNIT_FINISHED', 'METHOD_EXIT', 'CONSTRUCTOR_EXIT', 'FLOW_INTERVIEW_FINISHED'].includes(opType)) {
+			if (['CODE_UNIT_FINISHED', 'METHOD_EXIT', 'SOQL_EXECUTE_END', 'DML_END', 'CALLOUT_RESPONSE', 'CONSTRUCTOR_EXIT', 'FLOW_INTERVIEW_FINISHED'].includes(opType)) {
+				// Logs with managed packages are sometimes incorrect with start tags and  missing finish ones. try to fold properly
+				opTypeCateg = opType.split('_')[0];
+				while (treeRoot !== null && treeRoot.parent !== null && treeRoot.opType.split('_')[0] !== opTypeCateg) {
+					treeRoot.opTime = Math.trunc((timeDelta) / 1000000) - treeRoot.opStart;
+					treeRoot = treeRoot.parent;
+				}
+
 				treeRoot.opTime = Math.trunc((timeDelta) / 1000000) - treeRoot.opStart;
+				if (opType === 'SOQL_EXECUTE_END') treeRoot.opDetails = 'SOQL ' + bb[3].split(':')[1] + ' rows -> ' + treeRoot.opDetails;
+				if (opType === 'CALLOUT_RESPONSE') treeRoot.opDetails = 'CALLOUT ' + bb[3].replace(/.*\[/, '').replace(/\].*/, '') + ' -> ' + treeRoot.opDetails;
 				if (treeRoot.isIO) {
-					treeRoot.opRes += ', ' + bb[3];
 					treeRoot.containsIO = true;
 				}
 				if (treeRoot.parent) {
@@ -291,9 +360,9 @@
 			});
 		const dbgList = await dbgResp.json();
 
-		document.getElementById('treeroot').innerHTML = '<table><tr>' + fields.map(f=>`<th>${f}</th>`).join('') + '<th>load</th></tr>' +
-			dbgList.records.map(r=>fields.map(f=>`<td>${r[f]}</td>`).join('')+`<td><a href="./RAL.html?logid=${r['Id']}">load</a></td>`)
-				.map(r=>`<tr>${r}</tr>`).join('') + '</table>';
+		document.getElementById('treeroot').innerHTML = '<table><tr>' + fields.map(f => `<th>${f}</th>`).join('') + '<th>load</th></tr>' +
+			dbgList.records.map(r => fields.map(f => `<td>${r[f]}</td>`).join('') + `<td><a href="./RAL.html?logid=${r['Id']}">load</a></td>`)
+				.map(r => `<tr>${r}</tr>`).join('') + '</table>';
 	}
 
 	async function loadFromSF(lid) {
@@ -323,4 +392,5 @@
 	if (logid) displayLog(logid);
 
 </script>
+
 </html>
