@@ -228,13 +228,43 @@
 	}
 
 	const detailMsgs = {
-		'SOQL_EXECUTE_BEGIN': bb => bb[4].split(/[ ,]/).reduce(formatSOQL, ''),
 		'DML_BEGIN': bb => `DML ${bb[3].split(':')[1]} ${bb[5].split(':')[1]} ${bb[4].split(':')[1]}`,
 		'CALLOUT_REQUEST': bb => bb[3].replace(/.*\[/, '').replace(/\].*/, ''),
 		'FATAL_ERROR': bb => bb[2],
 		'CONSTRUCTOR_ENTRY': bb => `new ${bb[5]}`,
 		'USER_DEBUG': bb => bb[3] + ' ' + bb[4],
-		'DEFAULT': bb => (bb[4]) ? bb[4] : bb[3]
+		'DEFAULT': bb => (bb[4]) ? bb[4] : bb[3],
+		'SOQL_EXECUTE_BEGIN': bb => {
+			let toks = bb[4].replace(/[,()]/g, " $& ").split(" ").filter(a => a !== "");
+			console.log(toks);
+			let parColors = ['red', 'green', 'blue', 'Magenta', 'Aqua', 'Orange'];
+			let txtColors = ['LightSlateGray', 'DimGray', 'Gray', 'DarkGray', 'Silver', 'LightGray'];
+			let qLevel = 0;
+			let resStr = '';
+			let fromTok = false;
+			for (t of toks) {
+				switch (t.toUpperCase()) {
+					case '(':
+						resStr += `<span style="color:${parColors[qLevel]};"> <b>(</b> </span><span style="color:${txtColors[qLevel]};">`;
+						qLevel += 1;
+						break;
+					case ')':
+						qLevel -= 1;
+						resStr += `</span><span style="color:${parColors[qLevel]};"> <b>)</b> </span>`;
+						break;
+					case "FROM":
+						fromTok = true;
+						resStr += '<b>';
+					default:
+						resStr += t + ' ';
+						if (fromTok && t.toUpperCase() !== "FROM") {
+							resStr += '</b>';
+							fromTok = false;
+						}
+				}
+			}
+			return resStr;
+		}
 	}
 
 
