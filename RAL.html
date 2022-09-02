@@ -153,9 +153,9 @@
 			}
 			let outstr = '<li>';
 			if (this.isIO) {
-				outstr += `<span class="opinfo" ${wrap ? `onclick="dowrap(${this.uid})"` : ""}>[${this.opStart}${this.opTime ? "+" + this.opTime : ""}  + "ms"] ${wrapSymbol} line ${this.opRes} ${this.opDetails} </span>`;
+				outstr += `<span class="opinfo" ${wrap ? `onclick="dowrap(${this.uid})"` : ""}>[${this.opStart}${this.opTime ? "+" + this.opTime : ""}ms] ${wrapSymbol} line ${this.opRes} ${this.opDetails} </span>`;
 			} else {
-				outstr += `<span class="opRes" ${wrap ? `onclick="dowrap(${this.uid})"` : ""}>[${this.opStart}${this.opTime ? "+" + this.opTime : ""} + "ms" ${ioList} ${wrapSymbol}]</span><span class="${this.isIO ? 'isIO' : 'code'}">${this.opDetails} line ${this.opRes}</span>`;
+				outstr += `<span class="opRes" ${wrap ? `onclick="dowrap(${this.uid})"` : ""}>[${this.opStart}${this.opTime ? "+" + this.opTime : ""}ms ${ioList} ${wrapSymbol}]</span><span class="${this.isIO ? 'isIO' : 'code'}">${this.opDetails} line ${this.opRes}</span>`;
 
 			}
 			return outstr;
